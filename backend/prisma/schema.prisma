@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  phoneNumber  String   @unique
+  isOnline     Boolean  @default(false)
+  lastSeen     DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  sentMessages       Message[]           @relation("MessageSender")
+  conversations      ConversationMember[]
+  contacts          Contact[]           @relation("ContactOwner")
+  contactsOf        Contact[]           @relation("ContactTarget")
+  archivedChats     ArchivedChat[]
+  messageReadStatus MessageReadStatus[]
+
+  @@index([phoneNumber])
+  @@map("users")
+}
+
+model Conversation {
+  id          String   @id @default(uuid())
+  name        String?  // For group chats
+  isGroup     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastMessageAt DateTime?
+
+  // Relations
+  members     ConversationMember[]
+  messages    Message[]
+  archivedBy  ArchivedChat[]
+
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id             String   @id @default(uuid())
+  conversationId String
+  userId         String
+  role           String   @default("member") // member, admin (for groups)
+  pinned         Boolean  @default(false)
+  muted          Boolean  @default(false)
+  unreadCount    Int      @default(0)
+  lastReadAt     DateTime?
+  joinedAt       DateTime @default(now())
+
+  // Relations
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  senderId       String
+  text           String?
+  type           String   @default("text") // text, image, video, audio, file, voice
+  voiceDuration  String?  // Duration for voice notes (can also be in MessageFile.duration)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime? // Soft delete
+
+  // Relations
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  readStatus     MessageReadStatus[]
+  files          MessageFile[]
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model MessageFile {
+  id           String   @id @default(uuid())
+  messageId    String
+  fileName     String
+  fileSize     String?
+  fileFormat   String?  // MIME type: image/jpeg, video/mp4, audio/mpeg
+  fileUrl      String
+  thumbnailUrl String?  // For images/videos
+  width        Int?     // For images/videos
+  height       Int?     // For images/videos
+  duration     Int?     // For videos/audio (seconds)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  message      Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([fileFormat])
+  @@map("message_files")
+}
+
+model MessageReadStatus {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  // Relations
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@index([messageId])
+  @@map("message_read_status")
+}
+
+model Contact {
+  id          String   @id @default(uuid())
+  ownerId     String
+  contactId   String
+  name        String?   // Custom name for the contact
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  owner       User @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  contact     User @relation("ContactTarget", fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, contactId])
+  @@index([ownerId])
+  @@map("contacts")
+}
+
+model ArchivedChat {
+  id             String   @id @default(uuid())
+  userId         String
+  conversationId String
+  archivedAt     DateTime @default(now())
+
+  // Relations
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conversationId])
+  @@index([userId])
+  @@map("archived_chats")
+}
