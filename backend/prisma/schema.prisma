@@ -73,8 +73,7 @@ model Message {
   conversationId String
   senderId       String
   text           String?
-  type           String   @default("text") // text, image, video, audio, file, voice
-  voiceDuration  String?  // Duration for voice notes (can also be in MessageFile.duration)
+  type           String   @default("text") 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   deletedAt      DateTime? // Soft delete
