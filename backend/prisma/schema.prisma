@@ -73,10 +73,10 @@ model Message {
   conversationId String
   senderId       String
   text           String?
-  type           String   @default("text") 
+  type           String   @default("text") // text, image, video, audio, file, voice
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  deletedAt      DateTime? // Soft delete
+  deletedAt      DateTime? 
 
   // Relations
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -156,4 +156,18 @@ model ArchivedChat {
   @@unique([userId, conversationId])
   @@index([userId])
   @@map("archived_chats")
+}
+
+
+
+
+
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  VOICE
 }
